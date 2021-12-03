@@ -63,7 +63,7 @@ from ..api import (
     THOST_FTDC_VC_AV,
     THOST_FTDC_TC_IOC,
     THOST_FTDC_VC_CV,
-    THOST_FTDC_AF_Delete
+    THOST_FTDC_AF_Delete, InstrumentStatus, StatusEnterReason, StatusData
 )
 
 
@@ -113,7 +113,24 @@ EXCHANGE_CTP2VT: Dict[str, Exchange] = {
     "DCE": Exchange.DCE,
     "INE": Exchange.INE
 }
+# 品种状态进入原因映射  hxxjava debug
+INSTRUMENTSTATUS_CTP2VT: Dict[str, InstrumentStatus] = {
+    "0": InstrumentStatus.BEFORE_TRADING,
+    "1": InstrumentStatus.NO_TRADING,
+    "2": InstrumentStatus.CONTINOUS,
+    "3": InstrumentStatus.AUCTION_ORDERING,
+    "4": InstrumentStatus.AUCTION_BALANCE,
+    "5": InstrumentStatus.AUCTION_MATCH,
+    "6": InstrumentStatus.CLOSE,
+    "7": InstrumentStatus.CLOSE
+}
 
+# 品种状态进入原因映射  hxxjava debug
+ENTERREASON_CTP2VT: Dict[str, StatusEnterReason] = {
+    "1": StatusEnterReason.AUTOMATIC,
+    "2": StatusEnterReason.MANUAL,
+    "3": StatusEnterReason.FUSE
+}
 # 产品类型映射
 PRODUCT_CTP2VT: Dict[str, Product] = {
     THOST_FTDC_PC_Futures: Product.FUTURES,
@@ -455,6 +472,26 @@ class CtpTdApi(TdApi):
         """服务器连接断开回报"""
         self.login_status = False
         self.gateway.write_log(f"交易服务器连接断开，原因{reason}")
+
+    def onRtnInstrumentStatus(self, data: dict):
+        """
+        当接收到合约品种状态信息 # hxxjava debug
+        """
+        if data:
+            # print(f"【data={data}】")
+            status = StatusData(
+                symbol=data["InstrumentID"],
+                exchange=EXCHANGE_CTP2VT[data["ExchangeID"]],
+                settlement_group_id=data["SettlementGroupID"],
+                instrument_status=INSTRUMENTSTATUS_CTP2VT[data["InstrumentStatus"]],
+                trading_segment_sn=data["TradingSegmentSN"],
+                enter_time=data["EnterTime"],
+                enter_reason=ENTERREASON_CTP2VT[data["EnterReason"]],
+                exchange_inst_id=data["ExchangeInstID"],
+                gateway_name=self.gateway_name
+            )
+            # print(f"status={status}")
+            self.gateway.on_status(status)
 
     def onRspAuthenticate(self, data: dict, error: dict, reqid: int, last: bool) -> None:
         """用户授权验证回报"""

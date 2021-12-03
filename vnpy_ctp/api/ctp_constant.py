@@ -1,3 +1,9 @@
+from dataclasses import dataclass
+from enum import Enum
+
+from vnpy.trader.constant import Exchange
+from vnpy.trader.object import BaseData
+
 THOST_FTDC_EXP_Normal = '0'
 THOST_FTDC_EXP_GenOrderByTrade = '1'
 THOST_FTDC_ICT_EID = '0'
@@ -1251,3 +1257,60 @@ THOST_FTDC_INS_COMB = '3'
 THOST_FTDC_TD_ALL = '0'
 THOST_FTDC_TD_TRADE = '1'
 THOST_FTDC_TD_UNTRADE = '2'
+
+
+class InstrumentStatus(Enum):
+    """
+    合约交易状态类型 hxxjava debug
+    """
+    BEFORE_TRADING = "开盘前"
+    NO_TRADING = "非交易"
+    CONTINOUS = "连续交易"
+    AUCTION_ORDERING = "集合竞价报单"
+    AUCTION_BALANCE = "集合竞价价格平衡"
+    AUCTION_MATCH = "集合竞价撮合"
+    CLOSE = "收盘"
+
+
+class StatusEnterReason(Enum):
+    """
+    品种进入交易状态原因类型 hxxjava debug
+    """
+    AUTOMATIC = "自动切换"
+    MANUAL = "手动切换"
+    FUSE = "熔断"
+
+
+@dataclass
+class StatusData(BaseData):
+    """
+    hxxjava debug
+    """
+    symbol: str
+    exchange: Exchange
+    settlement_group_id: str = ""
+    instrument_status: InstrumentStatus = None
+    trading_segment_sn: int = None
+    enter_time: str = ""
+    enter_reason: StatusEnterReason = StatusEnterReason.AUTOMATIC
+    exchange_inst_id: str = ""
+
+    def __post_init__(self):
+        """  """
+        self.vt_symbol = f"{self.symbol}.{self.exchange.value}"
+
+    def belongs_to(self, vt_symbol: str):
+        symbol, exchange_str = vt_symbol.split(".")
+        instrument = left_alphas(symbol).upper()
+        return (self.symbol.upper() == instrument) and (self.exchange.value == exchange_str)
+
+
+def left_alphas(instr: str):
+    """ get lefe alphas of a string """
+    ret_str = ''
+    for s in instr:
+        if s.isalpha():
+            ret_str += s
+        else:
+            break
+    return ret_str
